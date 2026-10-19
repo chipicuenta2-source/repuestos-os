@@ -1,0 +1,37 @@
+[package]
+name = "repuestos-pos"
+version = "0.2.0"
+description = "Sistema de venta e inventario para repuestos automotrices"
+edition = "2021"
+
+[build-dependencies]
+tauri-build = { version = "2", features = [] }
+
+[dependencies]
+tauri = { version = "2", features = [] }
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+rusqlite = { version = "0.31", features = ["bundled"] }
+bcrypt = "0.15"
+chrono = { version = "0.4", features = ["serde"] }
+sha2 = "0.10"
+hmac = "0.12"
+machine-uid = "0.5"
+hex = "0.4"
+getrandom = "0.2"
+# Modo red local: servidor HTTP integrado (PC principal) y cliente HTTP (otras PCs)
+tiny_http = "0.12"
+ureq = { version = "2", default-features = false, features = ["json"] }
+
+# bcrypt es lento sin optimizar en modo desarrollo; esto acelera el login en `tauri dev`
+[profile.dev.package.bcrypt]
+opt-level = 3
+[profile.dev.package.blowfish]
+opt-level = 3
+
+[profile.release]
+panic = "abort"
+codegen-units = 1
+lto = true
+opt-level = "s"
+strip = true
