@@ -21,7 +21,7 @@ pub fn listar_rentabilidad_productos(conn: &Connection) -> Result<Vec<Rentabilid
             p.id, p.nombre, c.nombre, p.estante, p.stock,
             COALESCE(v.cantidad_vendida, 0),
             COALESCE(v.total_vendido, 0),
-            co.costo_promedio,
+            COALESCE(co.costo_promedio, CASE WHEN p.costo > 0 THEN p.costo END),
             co.ultima_compra
         FROM productos p
         LEFT JOIN categorias c ON c.id = p.categoria_id

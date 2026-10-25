@@ -196,7 +196,12 @@ pub fn init_db(conn: &Connection) -> Result<()> {
         )?;
     }
 
+    if !columna_existe(conn, "productos", "costo") {
+        conn.execute("ALTER TABLE productos ADD COLUMN costo REAL NOT NULL DEFAULT 0", [])?;
+    }
+
     seed_inicial(conn)?;
+    cargar_catalogo_ryn(conn)?;
     Ok(())
 }
 
@@ -234,40 +239,66 @@ fn seed_inicial(conn: &Connection) -> Result<()> {
         }
     }
 
-    // Productos demo (tomados de muestra real de catálogo) solo si el inventario está vacío
-    let hay_productos: i64 =
-        conn.query_row("SELECT COUNT(*) FROM productos", [], |r| r.get(0))?;
-    if hay_productos == 0 {
-        let cat_id = |nombre: &str| -> i64 {
-            conn.query_row(
+    Ok(())
+}
+
+#[derive(serde::Deserialize)]
+struct ItemCatalogo {
+    codigo: String,
+    oem: String,
+    nombre: String,
+    detalle: String,
+    marca: String,
+    procedencia: String,
+    categoria: String,
+    unidad: String,
+    stock: i64,
+    costo: f64,
+    precio_venta: f64,
+    precio_facturado: f64,
+}
+
+/// Inventario inicial de RyN Importadora (Excel "Inventario general 2026").
+/// Se carga una sola vez: reemplaza los productos de muestra mientras todavía no haya
+/// ventas ni compras registradas. Si ya se trabajó con el sistema, no toca nada.
+fn cargar_catalogo_ryn(conn: &Connection) -> Result<()> {
+    conn.execute(
+        "CREATE TABLE IF NOT EXISTS ajustes (clave TEXT PRIMARY KEY, valor TEXT)",
+        [],
+    )?;
+    let ya: i64 = conn.query_row(
+        "SELECT COUNT(*) FROM ajustes WHERE clave = 'catalogo_ryn_v1'",
+        [],
+        |r| r.get(0),
+    )?;
+    if ya > 0 {
+        return Ok(());
+    }
+    let ventas: i64 = conn.query_row("SELECT COUNT(*) FROM ventas", [], |r| r.get(0))?;
+    let compras: i64 = conn.query_row("SELECT COUNT(*) FROM compras", [], |r| r.get(0))?;
+    if ventas == 0 && compras == 0 {
+        let items: Vec<ItemCatalogo> = serde_json::from_str(include_str!("catalogo.json"))
+            .map_err(|e| rusqlite::Error::ToSqlConversionFailure(Box::new(e)))?;
+        let tx = conn.unchecked_transaction()?;
+        tx.execute("DELETE FROM productos", [])?;
+        for i in items {
+            tx.execute(
+                "INSERT OR IGNORE INTO categorias (nombre) VALUES (?1)",
+                rusqlite::params![i.categoria],
+            )?;
+            let cat: i64 = tx.query_row(
                 "SELECT id FROM categorias WHERE nombre = ?1",
-                rusqlite::params![nombre],
+                rusqlite::params![i.categoria],
                 |r| r.get(0),
-            )
-            .unwrap_or(1)
-        };
-
-        let demo: Vec<(&str, &str, &str, &str, &str, &str, i64, &str, &str, &str, i64, f64, f64)> = vec![
-            ("343287", "343287", "AMORTIGUADOR DELANTERO", "AMORTIGUADOR DEL. SUZUKI DEL R/L SAMURAI JIMNY 98-", "WELMET", "TW", cat_id("Suspensión y Dirección"), "Estante 4", "Suspensión Suzuki", "PZA", 2, 140.0, 158.2),
-            ("348028", "348028", "AMORTIGUADOR TRASERO", "AMORTIGUADOR TRAS. SUZ ALTO/SPARK/CELERIO 09-", "WELMET", "TW", cat_id("Suspensión y Dirección"), "Estante 4", "Suspensión Suzuki", "PZA", 2, 130.0, 146.9),
-            ("GWT-83A", "", "BOMBA DE AGUA", "TOY COROLLA/SPRINTER 4AFE/SAFE89/95", "GMB", "JAPON", cat_id("Refrigeración"), "Estante 1", "Motor Toyota", "PIEZA", 1, 280.0, 316.4),
-            ("IXEH20TT", "4711", "BUJIA IRIDIUM", "BUJIA IRIDIUM ROSCA LARGA", "DENSO", "JAPON", cat_id("Eléctrico"), "Estante 7", "Eléctrico", "UNI", 8, 90.0, 101.7),
-            ("SK-039A", "SK-039A", "HOMOCINETICO", "HOMOCINETICO SUZUKI 1.3 1.5 M13A M15A Z13DT", "NKA", "KOREA", cat_id("Transmisión y Embrague"), "Estante 5", "Transmisión Suzuki", "PZA", 2, 250.0, 282.5),
-            ("17670-77E00.", "W52SE-82", "TERMOSTATO", "TERMOSTATO SUZUKI GRAND VITARA H20/G16A/J20A/M16A/J24", "TAMA", "JAPAN", cat_id("Refrigeración"), "Estante 2", "Refrigeración", "PZA", 1, 90.0, 101.7),
-            ("DTX-137L", "", "DISCO DE EMBRAGUE", "TOY3VZ/2TRFE 2SOX160 21X29 HILUX VIGO", "AISIN", "JAPON", cat_id("Transmisión y Embrague"), "Estante 5", "Embrague Toyota", "PIEZA", 1, 930.0, 1050.9),
-            ("55810-61M00.", "D2096", "PASTILLA DE FRENO", "PASTILLA SUZUKI DEL. NEW VITARA SX CROSS", "BUREKITEK", "TE", cat_id("Frenos"), "Estante 6", "Frenos Suzuki", "PZA", 1, 140.0, 158.2),
-            ("DOT3", "DOT3", "LIQUIDO DE FRENO", "LIQUIDO DE FRENO", "WOLKER", "TW", cat_id("Lubricantes y Líquidos"), "Estante 8", "Líquidos", "PIEZA", 24, 25.0, 28.25),
-            ("GOTITA", "", "SUPER GLUE GOTITA", "PEGAMENTO INSTANTANEO", "SUPER GLUE", "TW", cat_id("Accesorios y Consumibles"), "Estante 9", "Consumibles", "PIEZA", 12, 2.0, 2.26),
-        ];
-
-        for (codigo, oem, nombre, detalle, marca, procedencia, categoria_id, estante, etiqueta, unidad, stock, precio_venta, precio_facturado) in demo {
-            conn.execute(
-                "INSERT INTO productos (codigo, oem, nombre, detalle, marca, procedencia, categoria_id, estante, etiqueta, unidad, stock, stock_minimo, precio_venta, precio_facturado, activo)
-                 VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, 2, ?12, ?13, 1)",
-                rusqlite::params![codigo, oem, nombre, detalle, marca, procedencia, categoria_id, estante, etiqueta, unidad, stock, precio_venta, precio_facturado],
+            )?;
+            tx.execute(
+                "INSERT INTO productos (codigo, oem, nombre, detalle, marca, procedencia, categoria_id, estante, etiqueta, unidad, stock, stock_minimo, precio_venta, precio_facturado, costo, activo)
+                 VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, '', '', ?8, ?9, 2, ?10, ?11, ?12, 1)",
+                rusqlite::params![i.codigo, i.oem, i.nombre, i.detalle, i.marca, i.procedencia, cat, i.unidad, i.stock, i.precio_venta, i.precio_facturado, i.costo],
             )?;
         }
+        tx.execute("INSERT INTO ajustes (clave, valor) VALUES ('catalogo_ryn_v1', 'ok')", [])?;
+        tx.commit()?;
     }
-
     Ok(())
 }

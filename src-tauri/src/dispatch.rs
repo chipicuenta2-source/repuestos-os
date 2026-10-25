@@ -36,6 +36,7 @@ fn requiere_admin(cmd: &str) -> bool {
             | "listar_usuarios"
             | "crear_usuario"
             | "cambiar_estado_usuario"
+            | "editar_usuario"
             | "listar_rentabilidad_productos"
             | "resumen_general"
             | "listar_auditoria"
@@ -158,6 +159,14 @@ pub fn despachar(conn: &mut Connection, ctx: &Ctx, cmd: &str, args: &Value) -> R
         // --- Usuarios ---
         "listar_usuarios" => json_de(usuarios::listar_usuarios(conn)?),
         "crear_usuario" => json_de(usuarios::crear_usuario(conn, &ctx, arg(args, "usuario")?)?),
+        "editar_usuario" => {
+            usuarios::editar_usuario(conn, &ctx, arg(args, "id")?, arg(args, "datos")?)?;
+            Ok(Value::Null)
+        }
+        "cambiar_mi_password" => {
+            usuarios::cambiar_mi_password(conn, &ctx, &arg::<String>(args, "actual")?, &arg::<String>(args, "nueva")?)?;
+            Ok(Value::Null)
+        }
         "cambiar_estado_usuario" => {
             usuarios::cambiar_estado_usuario(conn, &ctx, arg(args, "id")?, arg(args, "activo")?)?;
             Ok(Value::Null)

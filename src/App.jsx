@@ -5,6 +5,7 @@ import Login from "./components/Login.jsx";
 import AbrirCaja from "./components/AbrirCaja.jsx";
 import Sidebar from "./components/Sidebar.jsx";
 import CerrarCaja from "./components/modals/CerrarCaja.jsx";
+import MiPassword from "./components/modals/MiPassword.jsx";
 import ConfigRedModal from "./components/modals/ConfigRedModal.jsx";
 import POS from "./components/views/POS.jsx";
 import Productos from "./components/views/Productos.jsx";
@@ -28,6 +29,7 @@ export default function App() {
   const [vista, setVista] = useState("pos");
   const [mostrarCerrarCaja, setMostrarCerrarCaja] = useState(false);
   const [mostrarRed, setMostrarRed] = useState(false);
+  const [mostrarPass, setMostrarPass] = useState(false);
   const [aviso, setAviso] = useState("");
 
   const iniciar = useCallback(async () => {
@@ -167,6 +169,7 @@ export default function App() {
             )}
             <div className="avatar">{usuario.nombre.slice(0, 2).toUpperCase()}</div>
             {usuario.nombre} · {usuario.rol === "admin" ? "Admin" : "Cajero"}
+            <button className="btn-logout" onClick={() => setMostrarPass(true)}>Contraseña</button>
             <button className="btn-logout" onClick={() => setMostrarCerrarCaja(true)}>Cerrar caja</button>
             <button className="btn-logout" onClick={salir}>Salir</button>
           </div>
@@ -175,6 +178,8 @@ export default function App() {
           <VistaActual usuario={usuario} cajaSesion={cajaSesion} />
         </div>
       </div>
+
+      {mostrarPass && <MiPassword onClose={() => setMostrarPass(false)} />}
 
       {mostrarCerrarCaja && (
         <CerrarCaja

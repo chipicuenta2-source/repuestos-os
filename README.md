@@ -136,3 +136,12 @@ Notas:
 - La comunicación en la red del local es HTTP simple; úsalo solo en una red de confianza.
 - Los precios los decide el servidor; el stock se valida al vender, así que dos cajas no pueden vender la última unidad a la vez.
 - Desactivar un usuario o cambiar su rol surte efecto de inmediato en todas las PCs.
+
+## Instalador para Windows
+Opción A (en una PC con Windows): instala Node, Rust y las "Build Tools de Visual Studio (C++)", abre una terminal en la carpeta y ejecuta `npm install` y `npm run tauri build`. Los instaladores quedan en `src-tauri\target\release\bundle\nsis\` (.exe) y `...\msi\`.
+Opción B (desde la Mac, sin Windows): sube el proyecto a un repositorio privado de GitHub y ejecuta la acción "Compilar Windows" (pestaña Actions → Run workflow). Al terminar, descarga el instalador desde "Artifacts".
+La clave de licencia se genera igual: el código del equipo de la PC Windows con `node herramientas/generar-clave.mjs`.
+
+
+## Inventario RyN Importadora
+Al abrir por primera vez, el sistema carga el "Inventario general RYN 2026" (179 productos, con costo de llegada, precio sin factura y precio con factura). Reemplaza los productos de muestra, y solo si todavía no hay ventas ni compras registradas. Los datos están en `src-tauri/src/catalogo.json`. El costo de llegada se usa en Reportes para la ganancia de productos sin compras registradas. Estante y etiqueta quedan vacíos para llenarlos en Inventario.

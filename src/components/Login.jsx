@@ -1,3 +1,4 @@
+import { MARCA } from "../marca.js";
 import { useState } from "react";
 import { api } from "../api.js";
 
@@ -24,7 +25,7 @@ export default function Login({ onLogin, onConfigRed, aviso }) {
   return (
     <div className="centered-screen">
       <div className="login-box">
-        <div className="brand"><span className="brand-dot"></span>REPUESTOS OS</div>
+        <div className="brand-logo"><img src={MARCA.logo} alt={MARCA.nombre} /></div>
         {aviso && <div className="error-msg">{aviso}</div>}
         {error && <div className="error-msg">{error}</div>}
         <form onSubmit={entrar}>

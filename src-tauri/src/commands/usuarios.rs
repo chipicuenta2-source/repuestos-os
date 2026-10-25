@@ -168,3 +168,97 @@ pub fn cambiar_estado_usuario(conn: &Connection, ctx: &Ctx, id: i64, activo: boo
     );
     Ok(())
 }
+
+#[derive(Deserialize)]
+pub struct EdicionUsuario {
+    pub nombre: String,
+    pub usuario: String,
+    pub rol: String,
+    /// Vacío o ausente = no cambiar la contraseña
+    pub password: Option<String>,
+}
+
+pub fn editar_usuario(conn: &Connection, ctx: &Ctx, id: i64, e: EdicionUsuario) -> Result<(), String> {
+    let yo = ctx.usuario()?;
+    let (nombre_ant, usuario_ant, rol_ant, activo): (String, String, String, i64) = conn
+        .query_row("SELECT nombre, usuario, rol, activo FROM usuarios WHERE id = ?1", params![id], |r| {
+            Ok((r.get(0)?, r.get(1)?, r.get(2)?, r.get(3)?))
+        })
+        .map_err(|_| "Usuario no encontrado".to_string())?;
+    let nombre = e.nombre.trim().to_string();
+    let login = e.usuario.trim().to_string();
+    if nombre.is_empty() || login.is_empty() {
+        return Err("Nombre y usuario son obligatorios".into());
+    }
+    if e.rol != "admin" && e.rol != "cajero" {
+        return Err("Rol inválido".into());
+    }
+    let existe: i64 = conn
+        .query_row("SELECT COUNT(*) FROM usuarios WHERE usuario = ?1 AND id <> ?2", params![login, id], |r| r.get(0))
+        .map_err(|e| e.to_string())?;
+    if existe > 0 {
+        return Err("Ya existe otro usuario con ese nombre de usuario".into());
+    }
+    if rol_ant == "admin" && e.rol != "admin" {
+        if id == yo.id {
+            return Err("No puedes quitarte a ti mismo el rol de administrador".into());
+        }
+        let otros: i64 = conn
+            .query_row("SELECT COUNT(*) FROM usuarios WHERE rol = 'admin' AND activo = 1 AND id <> ?1", params![id], |r| r.get(0))
+            .map_err(|e| e.to_string())?;
+        if otros == 0 && activo == 1 {
+            return Err("Debe quedar al menos un administrador activo".into());
+        }
+    }
+    let nueva = e.password.as_deref().map(str::trim).filter(|p| !p.is_empty());
+    if let Some(p) = nueva {
+        if p.len() < 4 {
+            return Err("La contraseña debe tener al menos 4 caracteres".into());
+        }
+    }
+    conn.execute(
+        "UPDATE usuarios SET nombre = ?1, usuario = ?2, rol = ?3 WHERE id = ?4",
+        params![nombre, login, e.rol, id],
+    )
+    .map_err(|e| e.to_string())?;
+    if let Some(p) = nueva {
+        let hash = bcrypt::hash(p, bcrypt::DEFAULT_COST).map_err(|e| e.to_string())?;
+        conn.execute(
+            "UPDATE usuarios SET password_hash = ?1 WHERE id = ?2",
+            params![hash, id],
+        )
+        .map_err(|e| e.to_string())?;
+    }
+    let mut cambios = vec![];
+    if nombre != nombre_ant { cambios.push(format!("nombre: {} → {}", nombre_ant, nombre)); }
+    if login != usuario_ant { cambios.push(format!("usuario: {} → {}", usuario_ant, login)); }
+    if e.rol != rol_ant { cambios.push(format!("rol: {} → {}", rol_ant, e.rol)); }
+    if nueva.is_some() { cambios.push("contraseña restablecida".to_string()); }
+    let detalle = if cambios.is_empty() {
+        format!("Guardó al usuario {} ({}) sin cambios", nombre_ant, usuario_ant)
+    } else {
+        format!("Editó al usuario {} ({}): {}", nombre_ant, usuario_ant, cambios.join(", "))
+    };
+    audit::registrar(conn, Some(yo), "editar_usuario", "usuario", Some(id), &detalle);
+    Ok(())
+}
+
+/// Cada usuario puede cambiar su propia contraseña, confirmando la actual.
+pub fn cambiar_mi_password(conn: &Connection, ctx: &Ctx, actual: &str, nueva: &str) -> Result<(), String> {
+    let yo = ctx.usuario()?;
+    let hash: String = conn
+        .query_row("SELECT password_hash FROM usuarios WHERE id = ?1", params![yo.id], |r| r.get(0))
+        .map_err(|_| "Usuario no encontrado".to_string())?;
+    if !bcrypt::verify(actual, &hash).unwrap_or(false) {
+        return Err("La contraseña actual no es correcta".into());
+    }
+    let nueva = nueva.trim();
+    if nueva.len() < 4 {
+        return Err("La nueva contraseña debe tener al menos 4 caracteres".into());
+    }
+    let nuevo_hash = bcrypt::hash(nueva, bcrypt::DEFAULT_COST).map_err(|e| e.to_string())?;
+    conn.execute("UPDATE usuarios SET password_hash = ?1 WHERE id = ?2", params![nuevo_hash, yo.id])
+        .map_err(|e| e.to_string())?;
+    audit::registrar(conn, Some(yo), "cambiar_password", "usuario", Some(yo.id), "Cambió su propia contraseña");
+    Ok(())
+}

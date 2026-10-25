@@ -1,3 +1,4 @@
+import { MARCA } from "../marca.js";
 import { useState } from "react";
 import { api } from "../api.js";
 
@@ -34,7 +35,7 @@ export default function ActivacionLicencia({ estado, onActivada, onConfigRed }) 
   return (
     <div className="centered-screen">
       <div className="login-box">
-        <div className="brand"><span className="brand-dot"></span>REPUESTOS OS</div>
+        <div className="brand-logo"><img src={MARCA.logo} alt={MARCA.nombre} /></div>
 
         <div className="codigo-equipo">
           <div style={{ fontSize: 11, opacity: 0.75, textTransform: "uppercase" }}>Código de este equipo</div>

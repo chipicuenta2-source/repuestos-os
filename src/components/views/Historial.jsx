@@ -2,6 +2,8 @@ import { useEffect, useState } from "react";
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
 import { api } from "../../api.js";
+import VistaPreviaPDF from "../modals/VistaPreviaPDF.jsx";
+import { encabezadoPDF } from "../../marca.js";
 import { ACCIONES, etiquetaAccion, fechaHora, fechaIso, hace } from "../etiquetasAuditoria.js";
 
 export default function Historial() {
@@ -13,7 +15,7 @@ export default function Historial() {
   const [hasta, setHasta] = useState(fechaIso());
   const [texto, setTexto] = useState("");
   const [cargando, setCargando] = useState(false);
-  const [mensajePdf, setMensajePdf] = useState("");
+  const [pdf, setPdf] = useState(null);
 
   useEffect(() => {
     api.listarUsuarios().then(setUsuarios);
@@ -50,31 +52,29 @@ export default function Historial() {
 
   function exportarPDF() {
     const doc = new jsPDF({ orientation: "landscape" });
-    doc.setFontSize(15);
-    doc.text("REPUESTOS OS - Historial de actividad", 14, 14);
+    const y0 = encabezadoPDF(doc, "Historial de actividad");
     doc.setFontSize(9);
-    doc.text(`Del ${desde || "inicio"} al ${hasta || "hoy"} · generado ${new Date().toLocaleString("es-BO")}`, 14, 20);
+    doc.text(`Del ${desde || "inicio"} al ${hasta || "hoy"} · generado ${new Date().toLocaleString("es-BO")}`, 14, y0);
     autoTable(doc, {
-      startY: 25,
+      startY: y0 + 4,
       head: [["Fecha", "Usuario", "Acción", "Detalle"]],
       body: eventos.map((e) => [fechaHora(e.fecha), e.usuario_nombre || "—", etiquetaAccion(e.accion).texto, e.detalle || ""]),
       styles: { fontSize: 8, cellPadding: 1.8 },
       columnStyles: { 0: { cellWidth: 32 }, 1: { cellWidth: 42 }, 2: { cellWidth: 40 } },
     });
-    doc.save(`historial-${fechaIso()}.pdf`);
-    setMensajePdf("✓ PDF descargado. Revisa la carpeta de Descargas de tu equipo.");
+    setPdf({ doc, nombre: `historial-${fechaIso()}.pdf` });
   }
 
   return (
     <div className="view-scroll">
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 6 }}>
         <h1 className="font-title" style={{ fontSize: 19, textTransform: "uppercase" }}>Historial de actividad</h1>
-        <button className="btn btn-secondary" onClick={exportarPDF} disabled={eventos.length === 0}>Exportar PDF</button>
+        <button className="btn btn-secondary" onClick={exportarPDF} disabled={eventos.length === 0}>Ver PDF</button>
       </div>
       <p style={{ fontSize: 12.5, color: "var(--text-muted)", marginBottom: 16 }}>
         Quién hizo cada venta, cambio de precio o stock, compra, pago y más. Los registros no se pueden editar ni borrar.
       </p>
-      {mensajePdf && <div className="ok-msg">{mensajePdf}</div>}
+      {pdf && <VistaPreviaPDF doc={pdf.doc} nombre={pdf.nombre} onClose={() => setPdf(null)} />}
 
       <div className="filters-grid">
         <div className="field">

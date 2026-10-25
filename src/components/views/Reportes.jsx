@@ -2,11 +2,13 @@ import { useEffect, useMemo, useState } from "react";
 import { api } from "../../api.js";
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
+import VistaPreviaPDF from "../modals/VistaPreviaPDF.jsx";
+import { encabezadoPDF } from "../../marca.js";
 
 export default function Reportes() {
   const [rentabilidad, setRentabilidad] = useState([]);
   const [resumen, setResumen] = useState(null);
-  const [mensajePdf, setMensajePdf] = useState("");
+  const [pdf, setPdf] = useState(null);
 
   useEffect(() => {
     api.listarRentabilidadProductos().then(setRentabilidad);
@@ -32,13 +34,11 @@ export default function Reportes() {
 
   function exportarPDF() {
     const doc = new jsPDF();
-    doc.setFontSize(16);
-    doc.text("REPUESTOS OS - Reporte General", 14, 16);
-    doc.setFontSize(10);
-    doc.text(`Generado: ${new Date().toLocaleString()}`, 14, 23);
+    const y0 = encabezadoPDF(doc, "Reporte General");
+    doc.text(`Generado: ${new Date().toLocaleString()}`, 14, y0);
 
     autoTable(doc, {
-      startY: 30,
+      startY: y0 + 6,
       head: [["Producto", "Categoría", "Stock", "Vendido", "Total vendido", "Costo prom.", "Ganancia neta", "Última compra"]],
       body: rentabilidad.map((r) => [
         r.nombre,
@@ -68,17 +68,16 @@ export default function Reportes() {
       doc.text(`Balance: Bs ${resumen.balance.toFixed(2)}`, 14, y);
     }
 
-    doc.save("reporte-repuestos-os.pdf");
-    setMensajePdf("✓ PDF descargado. Revisa la carpeta de Descargas de tu equipo.");
+    setPdf({ doc, nombre: "reporte-general.pdf" });
   }
 
   return (
     <div className="view-scroll">
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
         <h1 className="font-title" style={{ fontSize: 19, textTransform: "uppercase" }}>Reportes</h1>
-        <button className="btn btn-primary" onClick={exportarPDF}>Exportar PDF</button>
+        <button className="btn btn-primary" onClick={exportarPDF}>Ver PDF</button>
       </div>
-      {mensajePdf && <div className="ok-msg">{mensajePdf}</div>}
+      {pdf && <VistaPreviaPDF doc={pdf.doc} nombre={pdf.nombre} onClose={() => setPdf(null)} />}
 
       <div className="kpi-row">
         <div className="kpi-card">

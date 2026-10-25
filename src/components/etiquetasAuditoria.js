@@ -17,6 +17,8 @@ export const ACCIONES = {
   crear_cliente: { texto: "Cliente nuevo", clase: "act-info" },
   abono_cliente: { texto: "Abono de cliente", clase: "act-ok" },
   crear_usuario: { texto: "Usuario nuevo", clase: "act-warn" },
+  editar_usuario: { texto: "Usuario editado", clase: "act-warn" },
+  cambiar_password: { texto: "Cambio de contraseña", clase: "act-info" },
   cambiar_estado_usuario: { texto: "Usuario activado/desactivado", clase: "act-warn" },
   activar_licencia: { texto: "Licencia activada", clase: "act-ok" },
   config_red: { texto: "Configuración de red", clase: "act-warn" },

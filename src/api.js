@@ -546,6 +546,31 @@ export const api = {
     return invoke("crear_usuario", { usuario });
   },
 
+  async editarUsuario(id, datos) {
+    if (!isTauri) {
+      await wait();
+      const u = mockUsuarios.find((x) => x.id === id);
+      if (!u) throw "Usuario no encontrado";
+      if (mockUsuarios.some((x) => x.id !== id && x.usuario === datos.usuario.trim())) throw "Ya existe otro usuario con ese nombre de usuario";
+      if (datos.password && datos.password.trim().length < 4) throw "La contraseña debe tener al menos 4 caracteres";
+      Object.assign(u, { nombre: datos.nombre.trim(), usuario: datos.usuario.trim(), rol: datos.rol });
+      logMock("editar_usuario", "usuario", `Editó al usuario ${u.nombre} (${u.usuario})${datos.password ? ", contraseña restablecida" : ""}`);
+      return;
+    }
+    return invoke("editar_usuario", { id, datos });
+  },
+
+  async cambiarMiPassword(actual, nueva) {
+    if (!isTauri) {
+      await wait();
+      if (actual !== "admin123" && actual !== "1234") throw "La contraseña actual no es correcta";
+      if (nueva.trim().length < 4) throw "La nueva contraseña debe tener al menos 4 caracteres";
+      logMock("cambiar_password", "usuario", "Cambió su propia contraseña");
+      return;
+    }
+    return invoke("cambiar_mi_password", { actual, nueva });
+  },
+
   async cambiarEstadoUsuario(id, activo) {
     if (!isTauri) {
       await wait();
