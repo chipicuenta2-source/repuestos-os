@@ -148,3 +148,6 @@ Al abrir por primera vez, el sistema carga el "Inventario general RYN 2026" (179
 
 ## Otros ingresos y egresos de caja
 Menú **Ingresos / Egresos** (admin y cajero): fecha, concepto y monto. Los ingresos suman a la caja y los egresos restan. Si son de hoy y el usuario tiene su caja abierta, entran en el cierre de esa caja (esperado = apertura + ventas en efectivo + ingresos − egresos). El cajero solo registra con fecha de hoy y ve los suyos; el administrador puede usar fechas pasadas, ver los de todos y eliminar (salvo los de cajas ya cerradas). Todo queda en el Historial.
+
+## Cierre de caja: efectivo, QR y cobros de deudas
+El cierre muestra por separado lo cobrado en efectivo (ventas, cobros de deudas, otros ingresos/egresos) y lo cobrado por QR, que no entra al efectivo esperado. Los abonos de deudas ahora se registran en la caja abierta de quien los recibe (con método efectivo o QR) y exigen tener caja abierta; antes se sumaban a la caja de la venta original.

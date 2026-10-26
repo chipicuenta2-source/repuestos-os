@@ -1,6 +1,14 @@
 import { useState } from "react";
 import { api } from "../../api.js";
 
+function Fila({ t, v }) {
+  return (
+    <div style={{ display: "flex", justifyContent: "space-between", padding: "1px 0" }}>
+      <span>{t}</span><span className="mono">Bs {(v || 0).toFixed(2)}</span>
+    </div>
+  );
+}
+
 export default function CerrarCaja({ cajaSesion, onCerrada, onCancelar }) {
   const [montoContado, setMontoContado] = useState("");
   const [cargando, setCargando] = useState(false);
@@ -45,11 +53,18 @@ export default function CerrarCaja({ cajaSesion, onCerrada, onCancelar }) {
           </form>
         ) : (
           <div>
+            <div className="card" style={{ marginBottom: 10, fontSize: 13 }}>
+              <div className="label" style={{ marginBottom: 6 }}>Efectivo en caja</div>
+              <Fila t="Apertura" v={resultado.monto_apertura} />
+              <Fila t="+ Ventas en efectivo" v={resultado.ventas_efectivo} />
+              <Fila t="+ Cobros de deudas en efectivo" v={resultado.cobros_efectivo} />
+              <Fila t="+ Otros ingresos" v={resultado.otros_ingresos} />
+              <Fila t="− Otros egresos" v={resultado.otros_egresos} />
+            </div>
             <div className="card" style={{ marginBottom: 12, fontSize: 13 }}>
-              <div style={{ display: "flex", justifyContent: "space-between" }}><span>Apertura</span><span className="mono">Bs {resultado.monto_apertura.toFixed(2)}</span></div>
-              <div style={{ display: "flex", justifyContent: "space-between" }}><span>+ Ventas en efectivo</span><span className="mono">Bs {(resultado.ventas_efectivo || 0).toFixed(2)}</span></div>
-              <div style={{ display: "flex", justifyContent: "space-between" }}><span>+ Otros ingresos</span><span className="mono">Bs {(resultado.otros_ingresos || 0).toFixed(2)}</span></div>
-              <div style={{ display: "flex", justifyContent: "space-between" }}><span>− Otros egresos</span><span className="mono">Bs {(resultado.otros_egresos || 0).toFixed(2)}</span></div>
+              <div className="label" style={{ marginBottom: 6 }}>Cobrado por QR (no entra al efectivo)</div>
+              <Fila t="Ventas por QR" v={resultado.ventas_qr} />
+              <Fila t="Cobros de deudas por QR" v={resultado.cobros_qr} />
             </div>
             <div className="field">
               <span className="label">Monto esperado</span>

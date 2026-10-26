@@ -161,7 +161,7 @@ export const api = {
         fecha_cierre: null,
         monto_esperado: null,
         monto_contado: null,
-        ventas_efectivo: 0, otros_ingresos: 0, otros_egresos: 0,
+        ventas_efectivo: 0, ventas_qr: 0, cobros_efectivo: 0, cobros_qr: 0, otros_ingresos: 0, otros_egresos: 0,
       };
       mockCajaSesiones.push(sesion);
       logMock("abrir_caja", "caja", `Abrió caja con Bs ${montoApertura.toFixed(2)}`);
@@ -174,12 +174,20 @@ export const api = {
     if (!isTauri) {
       await wait();
       const sesion = mockCajaSesiones.find((s) => s.id === cajaSesionId);
-      const totalEfectivo = mockVentas
-        .filter((v) => v.caja_sesion_id === cajaSesionId && v.metodo_pago === "efectivo")
-        .reduce((acc, v) => acc + v.monto_abonado, 0);
+      const abonosDe = (v) => mockPagosVenta.filter((p) => p.venta_id === v.id).reduce((a, p) => a + p.monto, 0);
+      const ventasDe = (m) => mockVentas
+        .filter((v) => v.caja_sesion_id === cajaSesionId && v.metodo_pago === m)
+        .reduce((acc, v) => acc + v.monto_abonado - abonosDe(v), 0);
+      const cobrosDe = (m) => mockPagosVenta
+        .filter((p) => p.caja_sesion_id === cajaSesionId && p.metodo_pago === m)
+        .reduce((a, p) => a + p.monto, 0);
+      const totalEfectivo = ventasDe("efectivo") + cobrosDe("efectivo");
+      sesion.ventas_qr = ventasDe("qr");
+      sesion.cobros_efectivo = cobrosDe("efectivo");
+      sesion.cobros_qr = cobrosDe("qr");
       sesion.fecha_cierre = new Date().toISOString();
       const movs = mockMovCaja.filter((m) => m.caja_sesion_id === cajaSesionId);
-      sesion.ventas_efectivo = totalEfectivo;
+      sesion.ventas_efectivo = ventasDe("efectivo");
       sesion.otros_ingresos = movs.filter((m) => m.tipo === "ingreso").reduce((a, m) => a + m.monto, 0);
       sesion.otros_egresos = movs.filter((m) => m.tipo === "egreso").reduce((a, m) => a + m.monto, 0);
       sesion.monto_esperado = sesion.monto_apertura + totalEfectivo + sesion.otros_ingresos - sesion.otros_egresos;
@@ -221,10 +229,10 @@ export const api = {
       return mockMovCaja
         .filter((m) => (u?.rol === "admin" || m.usuario_id === u?.id)
           && (!filtros.desde || m.fecha >= filtros.desde) && (!filtros.hasta || m.fecha <= filtros.hasta)
-          && (!filtros.tipo || m.tipo === filtros.tipo))
+          && (!filtros.tipo || m.tipo === filtros.tipo) && (!filtros.usuarioId || m.usuario_id === filtros.usuarioId))
         .sort((a, b) => (a.fecha < b.fecha ? 1 : a.fecha > b.fecha ? -1 : b.id - a.id));
     }
-    return invoke("listar_movimientos_caja", { desde: filtros.desde || null, hasta: filtros.hasta || null, tipo: filtros.tipo || null });
+    return invoke("listar_movimientos_caja", { desde: filtros.desde || null, hasta: filtros.hasta || null, tipo: filtros.tipo || null, usuarioId: filtros.usuarioId || null });
   },
 
   async eliminarMovimientoCaja(id) {
@@ -559,16 +567,18 @@ export const api = {
     return invoke("listar_deudas_clientes", { busqueda });
   },
 
-  async registrarPagoVenta(ventaId, monto) {
+  async registrarPagoVenta(ventaId, monto, metodoPago = "efectivo") {
     if (!isTauri) {
       await wait();
+      const caja = mockCajaSesiones.find((c) => c.usuario_id === mockUsuarioActual?.id && !c.fecha_cierre);
+      if (!caja) throw "Abre tu caja antes de registrar un abono";
       const venta = mockVentas.find((v) => v.id === ventaId);
       if (venta) venta.monto_abonado += monto;
       logMock("abono_cliente", "venta", `Abono de Bs ${monto.toFixed(2)} a la venta #${ventaId}`);
-      mockPagosVenta.push({ id: mockPagosVenta.length + 1, venta_id: ventaId, fecha: new Date().toISOString(), monto });
+      mockPagosVenta.push({ id: mockPagosVenta.length + 1, venta_id: ventaId, fecha: new Date().toISOString(), monto, caja_sesion_id: caja.id, metodo_pago: metodoPago });
       return;
     }
-    return invoke("registrar_pago_venta", { ventaId, monto });
+    return invoke("registrar_pago_venta", { ventaId, monto, metodoPago });
   },
 
   async listarPagosVenta(ventaId) {

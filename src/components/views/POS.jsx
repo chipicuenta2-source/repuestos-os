@@ -264,7 +264,7 @@ export default function POS({ usuario, cajaSesion }) {
 
         <div className="pay-section">
           {errorVenta && <div className="error-msg">{errorVenta}</div>}
-          <label style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 12.5, fontWeight: 600, marginBottom: 10 }}>
+          <label style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 12.5, fontWeight: 600, marginBottom: 6 }}>
             <input type="checkbox" checked={esCredito} onChange={(e) => setEsCredito(e.target.checked)} />
             Venta a crédito
           </label>

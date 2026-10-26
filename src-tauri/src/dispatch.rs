@@ -152,7 +152,7 @@ pub fn despachar(conn: &mut Connection, ctx: &Ctx, cmd: &str, args: &Value) -> R
             json_de(commands::ventas::listar_deudas_clientes(conn, &busqueda.unwrap_or_default())?)
         }
         "registrar_pago_venta" => {
-            commands::ventas::registrar_pago_venta(conn, &ctx, arg(args, "ventaId")?, arg(args, "monto")?)?;
+            commands::ventas::registrar_pago_venta(conn, &ctx, arg(args, "ventaId")?, arg(args, "monto")?, arg(args, "metodoPago")?)?;
             Ok(Value::Null)
         }
         "listar_pagos_venta" => json_de(commands::ventas::listar_pagos_venta(conn, arg(args, "ventaId")?)?),
@@ -164,6 +164,7 @@ pub fn despachar(conn: &mut Connection, ctx: &Ctx, cmd: &str, args: &Value) -> R
                 desde: arg(args, "desde")?,
                 hasta: arg(args, "hasta")?,
                 tipo: arg(args, "tipo")?,
+                usuario_id: arg(args, "usuarioId")?,
             };
             json_de(commands::caja::listar_movimientos(conn, &ctx, f)?)
         }

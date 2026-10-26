@@ -36,7 +36,7 @@ button, input, select, textarea { font-family: inherit; }
 ::-webkit-scrollbar { width: 8px; height: 8px; }
 ::-webkit-scrollbar-thumb { background: #D8D4C8; border-radius: 8px; }
 
-.app-shell { display: flex; min-height: 100vh; }
+.app-shell { display: flex; height: 100vh; overflow: hidden; }
 
 /* Sidebar */
 .sidebar {
@@ -46,6 +46,7 @@ button, input, select, textarea { font-family: inherit; }
   flex-direction: column;
   flex-shrink: 0;
   padding: 22px 14px;
+  overflow-y: auto;
 }
 .brand {
   color: #fff;
@@ -83,7 +84,7 @@ button, input, select, textarea { font-family: inherit; }
 .sidebar-footer { margin-top: auto; padding: 12px; color: #5C6372; font-size: 11.5px; line-height: 1.5; }
 
 /* Main area */
-.main { flex: 1; display: flex; flex-direction: column; overflow: hidden; }
+.main { flex: 1; min-width: 0; min-height: 0; display: flex; flex-direction: column; overflow: hidden; }
 .topbar {
   display: flex; justify-content: space-between; align-items: center;
   padding: 18px 26px; border-bottom: 1px solid var(--border);
@@ -100,7 +101,7 @@ button, input, select, textarea { font-family: inherit; }
   padding: 7px 12px; border-radius: 7px; cursor: pointer;
 }
 
-.content { display: flex; flex: 1; overflow: hidden; }
+.content { display: flex; flex: 1; min-height: 0; overflow: hidden; }
 .view-scroll { flex: 1; padding: 20px 24px; overflow-y: auto; }
 
 /* Generic cards and buttons */

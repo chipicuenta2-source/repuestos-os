@@ -111,12 +111,13 @@ pub struct FiltroMovimientos {
     pub desde: Option<String>,
     pub hasta: Option<String>,
     pub tipo: Option<String>,
+    pub usuario_id: Option<i64>,
 }
 
 /// El cajero solo ve los suyos; el administrador ve todos.
 pub fn listar_movimientos(conn: &Connection, ctx: &Ctx, f: FiltroMovimientos) -> Result<Vec<MovimientoCaja>, String> {
     let user = ctx.usuario()?;
-    let solo_mio: Option<i64> = if user.rol == "admin" { None } else { Some(user.id) };
+    let solo_mio: Option<i64> = if user.rol == "admin" { f.usuario_id } else { Some(user.id) };
     let mut stmt = conn
         .prepare(
             "SELECT m.id, m.fecha, m.tipo, m.concepto, m.monto, m.usuario_id, u.nombre, m.caja_sesion_id, m.registrado

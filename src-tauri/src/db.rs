@@ -209,6 +209,22 @@ pub fn init_db(conn: &Connection) -> Result<()> {
         )?;
     }
 
+    if !columna_existe(conn, "pagos_venta", "caja_sesion_id") {
+        conn.execute("ALTER TABLE pagos_venta ADD COLUMN caja_sesion_id INTEGER", [])?;
+        conn.execute("ALTER TABLE pagos_venta ADD COLUMN usuario_id INTEGER", [])?;
+        conn.execute("ALTER TABLE pagos_venta ADD COLUMN metodo_pago TEXT NOT NULL DEFAULT 'efectivo'", [])?;
+        conn.execute("ALTER TABLE pagos_venta ADD COLUMN inicial INTEGER NOT NULL DEFAULT 0", [])?;
+        // Abonos anteriores: se quedan en la caja de la venta, como se contaban hasta ahora
+        conn.execute(
+            "UPDATE pagos_venta SET caja_sesion_id = (SELECT caja_sesion_id FROM ventas WHERE ventas.id = pagos_venta.venta_id), usuario_id = (SELECT usuario_id FROM ventas WHERE ventas.id = pagos_venta.venta_id)",
+            [],
+        )?;
+        conn.execute(
+            "UPDATE pagos_venta SET inicial = 1, metodo_pago = (SELECT metodo_pago FROM ventas WHERE ventas.id = pagos_venta.venta_id)
+             WHERE fecha = (SELECT fecha FROM ventas WHERE ventas.id = pagos_venta.venta_id)",
+            [],
+        )?;
+    }
     if !columna_existe(conn, "productos", "costo") {
         conn.execute("ALTER TABLE productos ADD COLUMN costo REAL NOT NULL DEFAULT 0", [])?;
     }

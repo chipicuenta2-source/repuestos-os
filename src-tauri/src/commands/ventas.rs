@@ -195,8 +195,8 @@ pub fn registrar_venta(conn: &mut Connection, ctx: &Ctx, venta: NuevaVenta) -> R
 
     if venta.es_credito && monto_abonado > 0.0 {
         tx.execute(
-            "INSERT INTO pagos_venta (venta_id, fecha, monto) VALUES (?1,?2,?3)",
-            params![venta_id, fecha, monto_abonado],
+            "INSERT INTO pagos_venta (venta_id, fecha, monto, caja_sesion_id, usuario_id, metodo_pago, inicial) VALUES (?1,?2,?3,?4,?5,?6,1)",
+            params![venta_id, fecha, monto_abonado, venta.caja_sesion_id, user.id, venta.metodo_pago],
         )
         .map_err(|e| e.to_string())?;
     }
@@ -345,10 +345,22 @@ pub fn listar_deudas_clientes(conn: &Connection, busqueda: &str) -> Result<Vec<D
     Ok(rows)
 }
 
-pub fn registrar_pago_venta(conn: &mut Connection, ctx: &Ctx, venta_id: i64, monto: f64) -> Result<(), String> {
+pub fn registrar_pago_venta(conn: &mut Connection, ctx: &Ctx, venta_id: i64, monto: f64, metodo: Option<String>) -> Result<(), String> {
+    let user = ctx.usuario()?;
     if monto <= 0.0 {
         return Err("El monto debe ser mayor a cero".into());
     }
+    let metodo = metodo.filter(|m| !m.is_empty()).unwrap_or_else(|| "efectivo".to_string());
+    if metodo != "efectivo" && metodo != "qr" {
+        return Err("Método de pago inválido".into());
+    }
+    let caja: i64 = conn
+        .query_row(
+            "SELECT id FROM caja_sesiones WHERE usuario_id = ?1 AND fecha_cierre IS NULL ORDER BY id DESC LIMIT 1",
+            params![user.id],
+            |r| r.get(0),
+        )
+        .map_err(|_| "Abre tu caja antes de registrar un abono".to_string())?;
     let tx = conn.transaction().map_err(|e| e.to_string())?;
     let (total, abonado, es_credito): (f64, f64, i64) = tx
         .query_row(
@@ -366,8 +378,8 @@ pub fn registrar_pago_venta(conn: &mut Connection, ctx: &Ctx, venta_id: i64, mon
     }
     let fecha = Local::now().to_rfc3339();
     tx.execute(
-        "INSERT INTO pagos_venta (venta_id, fecha, monto) VALUES (?1,?2,?3)",
-        params![venta_id, fecha, monto],
+        "INSERT INTO pagos_venta (venta_id, fecha, monto, caja_sesion_id, usuario_id, metodo_pago) VALUES (?1,?2,?3,?4,?5,?6)",
+        params![venta_id, fecha, monto, caja, user.id, metodo],
     )
     .map_err(|e| e.to_string())?;
     tx.execute(
@@ -381,7 +393,7 @@ pub fn registrar_pago_venta(conn: &mut Connection, ctx: &Ctx, venta_id: i64, mon
         "abono_cliente",
         "venta",
         Some(venta_id),
-        &format!("Abono de Bs {:.2} a la venta #{} (saldo restante Bs {:.2})", monto, venta_id, saldo - monto),
+        &format!("Abono de Bs {:.2} ({}) a la venta #{} (saldo restante Bs {:.2})", monto, if metodo == "qr" { "QR" } else { "efectivo" }, venta_id, saldo - monto),
     );
     tx.commit().map_err(|e| e.to_string())
 }
@@ -469,8 +481,34 @@ pub struct SesionCaja {
     pub monto_esperado: Option<f64>,
     pub monto_contado: Option<f64>,
     pub ventas_efectivo: f64,
+    pub ventas_qr: f64,
+    pub cobros_efectivo: f64,
+    pub cobros_qr: f64,
     pub otros_ingresos: f64,
     pub otros_egresos: f64,
+}
+
+/// (ventas efectivo, ventas QR, cobros de deudas efectivo, cobros de deudas QR) de una caja.
+/// "Ventas" = lo cobrado al momento de vender; "cobros" = abonos posteriores recibidos en esta caja.
+fn totales_cobrados(conn: &Connection, caja_sesion_id: i64) -> (f64, f64, f64, f64) {
+    let ventas = |metodo: &str| -> f64 {
+        conn.query_row(
+            "SELECT COALESCE(SUM(v.monto_abonado - COALESCE((SELECT SUM(p.monto) FROM pagos_venta p WHERE p.venta_id = v.id AND p.inicial = 0),0)),0)
+             FROM ventas v WHERE v.caja_sesion_id = ?1 AND v.metodo_pago = ?2",
+            params![caja_sesion_id, metodo],
+            |r| r.get(0),
+        )
+        .unwrap_or(0.0)
+    };
+    let cobros = |metodo: &str| -> f64 {
+        conn.query_row(
+            "SELECT COALESCE(SUM(monto),0) FROM pagos_venta WHERE caja_sesion_id = ?1 AND metodo_pago = ?2 AND inicial = 0",
+            params![caja_sesion_id, metodo],
+            |r| r.get(0),
+        )
+        .unwrap_or(0.0)
+    };
+    (ventas("efectivo"), ventas("qr"), cobros("efectivo"), cobros("qr"))
 }
 
 fn leer_sesion(conn: &Connection, id: i64) -> Result<SesionCaja, String> {
@@ -488,6 +526,9 @@ fn leer_sesion(conn: &Connection, id: i64) -> Result<SesionCaja, String> {
                 monto_esperado: r.get(5)?,
                 monto_contado: r.get(6)?,
                 ventas_efectivo: 0.0,
+                ventas_qr: 0.0,
+                cobros_efectivo: 0.0,
+                cobros_qr: 0.0,
                 otros_ingresos: 0.0,
                 otros_egresos: 0.0,
             })
@@ -495,13 +536,11 @@ fn leer_sesion(conn: &Connection, id: i64) -> Result<SesionCaja, String> {
     )
     .map_err(|_| "Caja no encontrada".to_string())
     .map(|mut s| {
-        s.ventas_efectivo = conn
-            .query_row(
-                "SELECT COALESCE(SUM(monto_abonado),0) FROM ventas WHERE caja_sesion_id = ?1 AND metodo_pago = 'efectivo'",
-                params![s.id],
-                |r| r.get(0),
-            )
-            .unwrap_or(0.0);
+        let t = totales_cobrados(conn, s.id);
+        s.ventas_efectivo = t.0;
+        s.ventas_qr = t.1;
+        s.cobros_efectivo = t.2;
+        s.cobros_qr = t.3;
         let (i, e) = super::caja::totales_de_caja(conn, s.id);
         s.otros_ingresos = i;
         s.otros_egresos = e;
@@ -556,13 +595,8 @@ pub fn cerrar_caja(conn: &Connection, ctx: &Ctx, caja_sesion_id: i64, monto_cont
     if monto_contado < 0.0 {
         return Err("El monto contado no puede ser negativo".into());
     }
-    let efectivo: f64 = conn
-        .query_row(
-            "SELECT COALESCE(SUM(monto_abonado),0) FROM ventas WHERE caja_sesion_id = ?1 AND metodo_pago = 'efectivo'",
-            params![caja_sesion_id],
-            |r| r.get(0),
-        )
-        .map_err(|e| e.to_string())?;
+    let t = totales_cobrados(conn, caja_sesion_id);
+    let efectivo = t.0 + t.2;
     let (otros_ing, otros_egr) = super::caja::totales_de_caja(conn, caja_sesion_id);
     let esperado = sesion.monto_apertura + efectivo + otros_ing - otros_egr;
     let fecha = Local::now().to_rfc3339();
