@@ -13,6 +13,7 @@ import Proveedores from "./components/views/Proveedores.jsx";
 import Deudas from "./components/views/Deudas.jsx";
 import Reportes from "./components/views/Reportes.jsx";
 import Usuarios from "./components/views/Usuarios.jsx";
+import Movimientos from "./components/views/Movimientos.jsx";
 import Ventas from "./components/views/Ventas.jsx";
 import Historial from "./components/views/Historial.jsx";
 import Red from "./components/views/Red.jsx";
@@ -150,7 +151,7 @@ export default function App() {
   }
 
   const vistas = {
-    pos: POS, ventas: Ventas, inventario: Productos, proveedores: Proveedores,
+    pos: POS, ventas: Ventas, movimientos: Movimientos, inventario: Productos, proveedores: Proveedores,
     deudas: Deudas, reportes: Reportes, usuarios: Usuarios, historial: Historial, red: Red,
   };
   const soloAdmin = ["inventario", "proveedores", "deudas", "reportes", "usuarios", "historial", "red"];
@@ -196,6 +197,7 @@ function tituloVista(vista, usuario) {
   const titulos = {
     pos: "Punto de Venta",
     ventas: usuario.rol === "admin" ? "Ventas" : "Mis ventas",
+    movimientos: "Otros ingresos y egresos",
     inventario: "Inventario",
     proveedores: "Proveedores",
     deudas: "Clientes / Deudas",

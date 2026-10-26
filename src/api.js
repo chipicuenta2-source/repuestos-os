@@ -68,6 +68,8 @@ let mockPagosVenta = [];
 let mockCajaSesiones = [];
 let mockAuditoria = [];
 let mockUsuarioActual = null;
+let mockMovCaja = [];
+const hoyIso = () => { const d = new Date(); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`; };
 let nextId = { producto: 11, categoria: 9, proveedor: 2, cliente: 2, usuario: 3, venta: 1, caja: 1, evento: 1 };
 
 const wait = (ms = 120) => new Promise((r) => setTimeout(r, ms));
@@ -159,6 +161,7 @@ export const api = {
         fecha_cierre: null,
         monto_esperado: null,
         monto_contado: null,
+        ventas_efectivo: 0, otros_ingresos: 0, otros_egresos: 0,
       };
       mockCajaSesiones.push(sesion);
       logMock("abrir_caja", "caja", `Abrió caja con Bs ${montoApertura.toFixed(2)}`);
@@ -175,7 +178,11 @@ export const api = {
         .filter((v) => v.caja_sesion_id === cajaSesionId && v.metodo_pago === "efectivo")
         .reduce((acc, v) => acc + v.monto_abonado, 0);
       sesion.fecha_cierre = new Date().toISOString();
-      sesion.monto_esperado = sesion.monto_apertura + totalEfectivo;
+      const movs = mockMovCaja.filter((m) => m.caja_sesion_id === cajaSesionId);
+      sesion.ventas_efectivo = totalEfectivo;
+      sesion.otros_ingresos = movs.filter((m) => m.tipo === "ingreso").reduce((a, m) => a + m.monto, 0);
+      sesion.otros_egresos = movs.filter((m) => m.tipo === "egreso").reduce((a, m) => a + m.monto, 0);
+      sesion.monto_esperado = sesion.monto_apertura + totalEfectivo + sesion.otros_ingresos - sesion.otros_egresos;
       sesion.monto_contado = montoContado;
       logMock(
         "cerrar_caja",
@@ -185,6 +192,51 @@ export const api = {
       return sesion;
     }
     return invoke("cerrar_caja", { cajaSesionId, montoContado });
+  },
+
+  // --- Otros ingresos y egresos de caja ---
+  async registrarMovimientoCaja(movimiento) {
+    if (!isTauri) {
+      await wait();
+      const u = mockUsuarioActual;
+      const hoy = hoyIso();
+      if (!(movimiento.monto > 0)) throw "El monto debe ser mayor a cero";
+      if (!movimiento.concepto.trim()) throw "Escribe el concepto";
+      if (movimiento.fecha > hoy) throw "La fecha no puede ser futura";
+      if (u.rol !== "admin" && movimiento.fecha !== hoy) throw "Solo un administrador puede registrar movimientos de otra fecha";
+      const caja = movimiento.fecha === hoy ? mockCajaSesiones.find((c) => c.usuario_id === u.id && !c.fecha_cierre) : null;
+      if (u.rol !== "admin" && !caja) throw "Abre tu caja antes de registrar movimientos";
+      const m = { id: mockMovCaja.length + 1, ...movimiento, concepto: movimiento.concepto.trim(), usuario_id: u.id, usuario_nombre: u.nombre, caja_sesion_id: caja?.id ?? null, registrado: new Date().toISOString() };
+      mockMovCaja.push(m);
+      logMock(movimiento.tipo === "ingreso" ? "ingreso_caja" : "egreso_caja", "caja", `${movimiento.tipo === "ingreso" ? "Ingreso" : "Egreso"} de Bs ${movimiento.monto.toFixed(2)} · ${m.concepto} · fecha ${movimiento.fecha}`);
+      return m;
+    }
+    return invoke("registrar_movimiento_caja", { movimiento });
+  },
+
+  async listarMovimientosCaja(filtros = {}) {
+    if (!isTauri) {
+      await wait();
+      const u = mockUsuarioActual;
+      return mockMovCaja
+        .filter((m) => (u?.rol === "admin" || m.usuario_id === u?.id)
+          && (!filtros.desde || m.fecha >= filtros.desde) && (!filtros.hasta || m.fecha <= filtros.hasta)
+          && (!filtros.tipo || m.tipo === filtros.tipo))
+        .sort((a, b) => (a.fecha < b.fecha ? 1 : a.fecha > b.fecha ? -1 : b.id - a.id));
+    }
+    return invoke("listar_movimientos_caja", { desde: filtros.desde || null, hasta: filtros.hasta || null, tipo: filtros.tipo || null });
+  },
+
+  async eliminarMovimientoCaja(id) {
+    if (!isTauri) {
+      await wait();
+      const m = mockMovCaja.find((x) => x.id === id);
+      if (m?.caja_sesion_id && mockCajaSesiones.find((c) => c.id === m.caja_sesion_id)?.fecha_cierre) throw "Este movimiento ya forma parte de una caja cerrada y no se puede eliminar";
+      mockMovCaja = mockMovCaja.filter((x) => x.id !== id);
+      if (m) logMock("eliminar_movimiento_caja", "caja", `Eliminó ${m.tipo} de Bs ${m.monto.toFixed(2)} · ${m.concepto} · fecha ${m.fecha}`);
+      return;
+    }
+    return invoke("eliminar_movimiento_caja", { id });
   },
 
   async listarProductos() {

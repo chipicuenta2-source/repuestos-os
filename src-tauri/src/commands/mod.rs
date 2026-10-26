@@ -1,3 +1,4 @@
+pub mod caja;
 pub mod productos;
 pub mod proveedores;
 pub mod reportes;

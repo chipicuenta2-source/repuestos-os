@@ -45,6 +45,12 @@ export default function CerrarCaja({ cajaSesion, onCerrada, onCancelar }) {
           </form>
         ) : (
           <div>
+            <div className="card" style={{ marginBottom: 12, fontSize: 13 }}>
+              <div style={{ display: "flex", justifyContent: "space-between" }}><span>Apertura</span><span className="mono">Bs {resultado.monto_apertura.toFixed(2)}</span></div>
+              <div style={{ display: "flex", justifyContent: "space-between" }}><span>+ Ventas en efectivo</span><span className="mono">Bs {(resultado.ventas_efectivo || 0).toFixed(2)}</span></div>
+              <div style={{ display: "flex", justifyContent: "space-between" }}><span>+ Otros ingresos</span><span className="mono">Bs {(resultado.otros_ingresos || 0).toFixed(2)}</span></div>
+              <div style={{ display: "flex", justifyContent: "space-between" }}><span>− Otros egresos</span><span className="mono">Bs {(resultado.otros_egresos || 0).toFixed(2)}</span></div>
+            </div>
             <div className="field">
               <span className="label">Monto esperado</span>
               <div className="mono" style={{ fontSize: 18, fontWeight: 700 }}>Bs {resultado.monto_esperado.toFixed(2)}</div>

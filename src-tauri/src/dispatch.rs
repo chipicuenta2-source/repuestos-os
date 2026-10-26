@@ -37,6 +37,7 @@ fn requiere_admin(cmd: &str) -> bool {
             | "crear_usuario"
             | "cambiar_estado_usuario"
             | "editar_usuario"
+            | "eliminar_movimiento_caja"
             | "listar_rentabilidad_productos"
             | "resumen_general"
             | "listar_auditoria"
@@ -155,6 +156,21 @@ pub fn despachar(conn: &mut Connection, ctx: &Ctx, cmd: &str, args: &Value) -> R
             Ok(Value::Null)
         }
         "listar_pagos_venta" => json_de(commands::ventas::listar_pagos_venta(conn, arg(args, "ventaId")?)?),
+
+        // --- Otros ingresos y egresos de caja ---
+        "registrar_movimiento_caja" => json_de(commands::caja::registrar_movimiento(conn, &ctx, arg(args, "movimiento")?)?),
+        "listar_movimientos_caja" => {
+            let f = commands::caja::FiltroMovimientos {
+                desde: arg(args, "desde")?,
+                hasta: arg(args, "hasta")?,
+                tipo: arg(args, "tipo")?,
+            };
+            json_de(commands::caja::listar_movimientos(conn, &ctx, f)?)
+        }
+        "eliminar_movimiento_caja" => {
+            commands::caja::eliminar_movimiento(conn, &ctx, arg(args, "id")?)?;
+            Ok(Value::Null)
+        }
 
         // --- Usuarios ---
         "listar_usuarios" => json_de(usuarios::listar_usuarios(conn)?),

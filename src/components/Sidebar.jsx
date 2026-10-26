@@ -6,6 +6,7 @@ const ICONS = {
 const ITEMS = [
   { key: "pos", label: "Punto de Venta", roles: ["admin", "cajero"] },
   { key: "ventas", label: usuario => usuario.rol === "admin" ? "Ventas" : "Mis ventas", roles: ["admin", "cajero"] },
+  { key: "movimientos", label: "Ingresos / Egresos", roles: ["admin", "cajero"] },
   { key: "inventario", label: "Inventario", roles: ["admin"] },
   { key: "proveedores", label: "Proveedores", roles: ["admin"] },
   { key: "deudas", label: "Clientes / Deudas", roles: ["admin"] },
@@ -17,6 +18,7 @@ const ITEMS = [
 
 const SVGS = {
   ventas: "M9 11l3 3L22 4 M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11",
+  movimientos: "M12 1v22 M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6",
   historial: "M12 22a10 10 0 100-20 10 10 0 000 20z M12 6v6l4 2",
   red: "M5 12.55a11 11 0 0 1 14.08 0 M1.42 9a16 16 0 0 1 21.16 0 M8.53 16.11a6 6 0 0 1 6.95 0 M12 20h.01",
   pos: "M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6 M9 21a1 1 0 100-2 1 1 0 000 2 M20 21a1 1 0 100-2 1 1 0 000 2",

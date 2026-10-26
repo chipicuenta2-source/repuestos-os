@@ -145,3 +145,6 @@ La clave de licencia se genera igual: el código del equipo de la PC Windows con
 
 ## Inventario RyN Importadora
 Al abrir por primera vez, el sistema carga el "Inventario general RYN 2026" (179 productos, con costo de llegada, precio sin factura y precio con factura). Reemplaza los productos de muestra, y solo si todavía no hay ventas ni compras registradas. Los datos están en `src-tauri/src/catalogo.json`. El costo de llegada se usa en Reportes para la ganancia de productos sin compras registradas. Estante y etiqueta quedan vacíos para llenarlos en Inventario.
+
+## Otros ingresos y egresos de caja
+Menú **Ingresos / Egresos** (admin y cajero): fecha, concepto y monto. Los ingresos suman a la caja y los egresos restan. Si son de hoy y el usuario tiene su caja abierta, entran en el cierre de esa caja (esperado = apertura + ventas en efectivo + ingresos − egresos). El cajero solo registra con fecha de hoy y ve los suyos; el administrador puede usar fechas pasadas, ver los de todos y eliminar (salvo los de cajas ya cerradas). Todo queda en el Historial.

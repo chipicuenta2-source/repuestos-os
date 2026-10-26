@@ -468,6 +468,9 @@ pub struct SesionCaja {
     pub fecha_cierre: Option<String>,
     pub monto_esperado: Option<f64>,
     pub monto_contado: Option<f64>,
+    pub ventas_efectivo: f64,
+    pub otros_ingresos: f64,
+    pub otros_egresos: f64,
 }
 
 fn leer_sesion(conn: &Connection, id: i64) -> Result<SesionCaja, String> {
@@ -484,10 +487,26 @@ fn leer_sesion(conn: &Connection, id: i64) -> Result<SesionCaja, String> {
                 fecha_cierre: r.get(4)?,
                 monto_esperado: r.get(5)?,
                 monto_contado: r.get(6)?,
+                ventas_efectivo: 0.0,
+                otros_ingresos: 0.0,
+                otros_egresos: 0.0,
             })
         },
     )
     .map_err(|_| "Caja no encontrada".to_string())
+    .map(|mut s| {
+        s.ventas_efectivo = conn
+            .query_row(
+                "SELECT COALESCE(SUM(monto_abonado),0) FROM ventas WHERE caja_sesion_id = ?1 AND metodo_pago = 'efectivo'",
+                params![s.id],
+                |r| r.get(0),
+            )
+            .unwrap_or(0.0);
+        let (i, e) = super::caja::totales_de_caja(conn, s.id);
+        s.otros_ingresos = i;
+        s.otros_egresos = e;
+        s
+    })
 }
 
 /// La caja que este usuario dejó abierta (por ejemplo si se cerró la app sin cerrar caja).
@@ -544,7 +563,8 @@ pub fn cerrar_caja(conn: &Connection, ctx: &Ctx, caja_sesion_id: i64, monto_cont
             |r| r.get(0),
         )
         .map_err(|e| e.to_string())?;
-    let esperado = sesion.monto_apertura + efectivo;
+    let (otros_ing, otros_egr) = super::caja::totales_de_caja(conn, caja_sesion_id);
+    let esperado = sesion.monto_apertura + efectivo + otros_ing - otros_egr;
     let fecha = Local::now().to_rfc3339();
     conn.execute(
         "UPDATE caja_sesiones SET fecha_cierre = ?1, monto_esperado = ?2, monto_contado = ?3 WHERE id = ?4",

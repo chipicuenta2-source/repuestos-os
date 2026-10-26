@@ -114,6 +114,19 @@ pub fn init_db(conn: &Connection) -> Result<()> {
             FOREIGN KEY (usuario_id) REFERENCES usuarios(id)
         );
 
+        CREATE TABLE IF NOT EXISTS movimientos_caja (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            fecha TEXT NOT NULL,
+            tipo TEXT NOT NULL,
+            concepto TEXT NOT NULL,
+            monto REAL NOT NULL,
+            usuario_id INTEGER NOT NULL,
+            caja_sesion_id INTEGER,
+            registrado TEXT NOT NULL,
+            FOREIGN KEY (usuario_id) REFERENCES usuarios(id)
+        );
+        CREATE INDEX IF NOT EXISTS idx_mov_caja_fecha ON movimientos_caja(fecha);
+
         CREATE TABLE IF NOT EXISTS ventas (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             caja_sesion_id INTEGER NOT NULL,
