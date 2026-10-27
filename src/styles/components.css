@@ -168,3 +168,39 @@
 .ticket-item { grid-template-columns: minmax(0, 1fr) auto 84px 22px; }
 .ticket-item .ti-subtotal { white-space: nowrap; }
 .ticket-item .ti-calc .mono { white-space: nowrap; }
+
+/* --- POS opción C: venta arriba (tabla + cobro), catálogo compacto abajo --- */
+.pos-layout.pos-c { flex-direction: column; gap: 10px; padding: 12px 18px 14px; box-sizing: border-box; }
+.posc-top { flex: 0 0 52%; min-height: 0; display: flex; gap: 14px; }
+.posc-ticket { flex: 1; min-width: 0; background: var(--card-bg); border: 1px solid var(--border); border-radius: 12px; display: flex; flex-direction: column; overflow: hidden; }
+.posc-ticket-head { display: flex; align-items: center; gap: 12px; padding: 9px 16px; border-bottom: 1px solid var(--border); flex-shrink: 0; }
+.posc-ticket-head h2 { font-size: 16px; font-weight: 600; text-transform: uppercase; margin: 0; }
+.posc-count { font-size: 12px; color: var(--text-muted); }
+.posc-row { display: grid; grid-template-columns: minmax(0, 1fr) 110px 90px 110px 100px 30px; column-gap: 10px; align-items: center; padding: 0 16px; min-height: 36px; border-bottom: 1px solid #EFEDE5; font-size: 13px; }
+.posc-row .r { text-align: right; } .posc-row .c { justify-self: center; }
+.posc-th { min-height: 28px; background: #F7F5EF; font-size: 10.5px; font-weight: 700; letter-spacing: .6px; text-transform: uppercase; color: var(--text-muted); flex-shrink: 0; }
+.posc-rows { flex: 1; min-height: 0; overflow-y: auto; }
+.posc-name { font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.posc-code { font-size: 11px; color: var(--text-muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.posc-sub { font-weight: 700; }
+.posc-pay { width: 330px; flex-shrink: 0; background: var(--sidebar-bg); color: #fff; border-radius: 12px; padding: 14px 16px; box-sizing: border-box; display: flex; flex-direction: column; gap: 9px; overflow-y: auto; }
+.posc-total-label { font-size: 11px; color: #C9CFDA; text-transform: uppercase; letter-spacing: .9px; }
+.posc-total { font-size: 38px; font-weight: 700; color: #FFB08F; line-height: 1.05; white-space: nowrap; }
+.posc-credit { display: flex; align-items: center; gap: 8px; font-size: 12.5px; font-weight: 600; color: #C9CFDA; }
+.posc-pay .pay-methods { margin: 0; }
+.posc-pay .credit-box { display: flex; flex-direction: column; gap: 6px; }
+.posc-pay .input { padding: 7px 10px; }
+.posc-pay .btn-cobrar { margin-top: auto; padding: 14px; font-size: 18px; flex-shrink: 0; }
+.posc-bottom { flex: 1; min-height: 0; display: flex; flex-direction: column; gap: 8px; }
+.posc-tools { display: flex; gap: 10px; align-items: center; flex-shrink: 0; }
+.posc-tools .search-box { width: 340px; flex-shrink: 0; margin: 0; }
+.posc-chips { display: flex; gap: 6px; overflow-x: auto; }
+.posc-chips .chip { white-space: nowrap; padding: 6px 13px; font-size: 12px; }
+.posc-grid { flex: 1; min-height: 0; overflow-y: auto; display: grid; grid-template-columns: repeat(auto-fill, minmax(190px, 1fr)); gap: 8px; align-content: start; }
+.posc-tile { background: var(--card-bg); border: 1px solid var(--border); border-radius: 9px; padding: 8px 11px; cursor: pointer; display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.posc-tile:hover { border-color: var(--accent-orange); }
+.posc-tile.sin-stock { opacity: .5; cursor: not-allowed; }
+.posc-tile .n { font-size: 12px; font-weight: 600; line-height: 1.25; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.posc-tile .c { font-size: 10px; color: var(--text-muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.posc-tile .c .low { color: #B42318; font-weight: 700; }
+.posc-tile .p { font-size: 13px; font-weight: 700; }

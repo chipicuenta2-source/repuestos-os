@@ -169,156 +169,115 @@ export default function POS({ usuario, cajaSesion }) {
   }
 
   return (
-    <div className="pos-layout">
-      <div className="catalog">
-        <div className="search-box">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-            <circle cx="11" cy="11" r="8" /><line x1="21" y1="21" x2="16.65" y2="16.65" />
-          </svg>
-          <input
-            placeholder="Buscar por nombre, código, OEM o detalle del vehículo..."
-            value={busqueda}
-            onChange={(e) => setBusqueda(e.target.value)}
-          />
-        </div>
-        <div className="search-hint">La búsqueda cruza nombre, código interno, OEM y descripción de compatibilidad a la vez</div>
-
-        <div className="chips-row">
-          <div className={`chip ${!categoriaActiva ? "active" : ""}`} onClick={() => setCategoriaActiva(null)}>Todos</div>
-          {categorias.map((c) => (
-            <div
-              key={c.id}
-              className={`chip ${categoriaActiva === c.id ? "active" : ""}`}
-              onClick={() => setCategoriaActiva(c.id)}
-            >
-              {c.nombre}
+    <div className="pos-layout pos-c">
+      <div className="posc-top">
+        <div className="posc-ticket">
+          <div className="posc-ticket-head">
+            <h2>Venta actual</h2>
+            <span className="posc-count">{carrito.length} producto{carrito.length === 1 ? "" : "s"} · {carrito.reduce((a, i) => a + i.cantidad, 0)} unidades</span>
+            <div className="factura-toggle" style={{ marginLeft: "auto", marginBottom: 0 }}>
+              <button className={!esFacturado ? "active" : ""} onClick={() => setEsFacturado(false)}>Sin factura</button>
+              <button className={esFacturado ? "active on" : ""} onClick={() => setEsFacturado(true)}>Con factura</button>
             </div>
-          ))}
-        </div>
-
-        <div className="grid">
-          {productosFiltrados.map((p) => (
-            <div
-              key={p.id}
-              className={`product-card ${p.stock <= 0 ? "sin-stock" : ""}`}
-              onClick={() => agregarAlCarrito(p)}
-            >
-              <div className={`stock-badge ${p.stock <= p.stock_minimo ? "low" : ""}`}>{p.stock} u.</div>
-              <div className="product-name">{p.nombre}</div>
-              <div className="product-detail">{p.detalle} {p.marca ? `· ${p.marca}` : ""} {p.procedencia ? `· ${p.procedencia}` : ""}</div>
-              <div className="tag-row">
-                {p.estante && <div className="tag estante">📦 {p.estante}</div>}
-                {p.etiqueta && <div className="tag etiqueta">🏷️ {p.etiqueta}</div>}
+          </div>
+          <div className="posc-row posc-th">
+            <div>Producto</div><div>Código</div><div className="r">Precio</div><div className="c">Cant.</div><div className="r">Subtotal</div><div></div>
+          </div>
+          <div className="posc-rows">
+            {carrito.length === 0 && <div className="ticket-empty">Toca un producto de abajo para agregarlo a la venta</div>}
+            {carrito.map(({ producto, cantidad }) => (
+              <div className="posc-row" key={producto.id}>
+                <div className="posc-name" title={producto.nombre}>{producto.nombre}</div>
+                <div className="mono posc-code">{producto.oem || producto.codigo}</div>
+                <div className="mono r">{precioDe(producto).toFixed(2)}</div>
+                <div className="qty-control c">
+                  <button onClick={() => cambiarCantidad(producto.id, -1)}>–</button>
+                  <input value={cantidad} onChange={(e) => fijarCantidad(producto.id, e.target.value)} />
+                  <button onClick={() => cambiarCantidad(producto.id, 1)}>+</button>
+                </div>
+                <div className="mono r posc-sub">{(precioDe(producto) * cantidad).toFixed(2)}</div>
+                <button className="ti-remove" onClick={() => quitarDelCarrito(producto.id)} title="Quitar de la venta">🗑</button>
               </div>
-              <div className="code-row">
-                <div className="code-col">{p.oem ? "OEM" : "COD"}<br /><span className="mono">{p.oem || p.codigo}</span></div>
-                <div className="price-tag mono">Bs {precioDe(p).toFixed(2)}</div>
-              </div>
-            </div>
-          ))}
-          {productosFiltrados.length === 0 && (
-            <p style={{ color: "var(--text-muted)", gridColumn: "1 / -1" }}>No se encontraron productos.</p>
-          )}
-        </div>
-      </div>
-
-      <div className="ticket-panel">
-        <div className="ticket-header">
-          <h2>Ticket de Venta</h2>
-          <div className="factura-toggle">
-            <button className={!esFacturado ? "active" : ""} onClick={() => setEsFacturado(false)}>Sin factura</button>
-            <button className={esFacturado ? "active on" : ""} onClick={() => setEsFacturado(true)}>Con factura</button>
+            ))}
           </div>
         </div>
 
-        <div className="ticket-items">
-          {carrito.length === 0 && <div className="ticket-empty">Toca un producto del catálogo para agregarlo</div>}
-          {carrito.map(({ producto, cantidad }) => (
-            <div className="ticket-item" key={producto.id}>
-              <div className="ti-top">
-                <div>
-                  <div className="ti-name">{producto.nombre}</div>
-                  <div className="ti-meta mono">{producto.oem || producto.codigo} · {producto.estante}</div>
-                </div>
-                <button className="ti-remove" onClick={() => quitarDelCarrito(producto.id)} title="Quitar del ticket">🗑</button>
-              </div>
-              <div className="ti-breakdown">
-                <div className="ti-calc">
-                  <span className="mono">Bs {precioDe(producto).toFixed(2)}</span> ×
-                  <div className="qty-control">
-                    <button onClick={() => cambiarCantidad(producto.id, -1)}>–</button>
-                    <input value={cantidad} onChange={(e) => fijarCantidad(producto.id, e.target.value)} />
-                    <button onClick={() => cambiarCantidad(producto.id, 1)}>+</button>
-                  </div>
-                </div>
-                <div className="ti-subtotal mono">Bs {(precioDe(producto) * cantidad).toFixed(2)}</div>
-              </div>
-            </div>
-          ))}
-        </div>
-
-        <div className="ticket-summary">
-          <div className="sum-row"><span>Subtotal</span><span className="mono">Bs {subtotal.toFixed(2)}</span></div>
-          <div className="sum-row total"><span>Total</span><span className="mono">Bs {total.toFixed(2)}</span></div>
-        </div>
-
-        <div className="pay-section">
+        <div className="posc-pay">
+          <div className="posc-total-label">Total a cobrar</div>
+          <div className="posc-total mono">Bs {total.toFixed(2)}</div>
           {errorVenta && <div className="error-msg">{errorVenta}</div>}
-          <label style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 12.5, fontWeight: 600, marginBottom: 6 }}>
-            <input type="checkbox" checked={esCredito} onChange={(e) => setEsCredito(e.target.checked)} />
-            Venta a crédito
-          </label>
-
-          {esCredito ? (
-            <div className="credit-box">
-              <div className="field">
-                <label className="label">Cliente</label>
-                {!mostrarNuevoCliente ? (
-                  <select className="input" value={clienteId} onChange={(e) => setClienteId(e.target.value)}>
-                    <option value="">Seleccionar cliente...</option>
-                    {clientes.map((c) => (
-                      <option key={c.id} value={c.id}>{c.nombre}</option>
-                    ))}
-                  </select>
-                ) : (
-                  <div style={{ display: "flex", gap: 6 }}>
-                    <input className="input" value={nuevoClienteNombre} onChange={(e) => setNuevoClienteNombre(e.target.value)} placeholder="Nombre del cliente" />
-                    <button type="button" className="btn btn-primary btn-sm" onClick={crearClienteInline}>Crear</button>
-                  </div>
-                )}
-                <button
-                  type="button"
-                  className="btn btn-secondary btn-sm"
-                  style={{ marginTop: 6 }}
-                  onClick={() => setMostrarNuevoCliente((v) => !v)}
-                >
-                  {mostrarNuevoCliente ? "Cancelar" : "+ Nuevo cliente"}
-                </button>
-              </div>
-              <div className="field">
-                <label className="label">Abono inicial (Bs)</label>
-                <input className="input mono" type="number" min="0" step="0.01" value={montoPagadoInicial} onChange={(e) => setMontoPagadoInicial(e.target.value)} />
-              </div>
-            </div>
-          ) : (
-            <div className="field">
-              <label className="label">Nombre del comprador (opcional)</label>
-              <input className="input" value={nombreComprador} onChange={(e) => setNombreComprador(e.target.value)} />
-            </div>
-          )}
-
           <div className="pay-methods">
             <button className={metodoPago === "efectivo" ? "sel" : ""} onClick={() => setMetodoPago("efectivo")}>💵 Efectivo</button>
             <button className={metodoPago === "qr" ? "sel" : ""} onClick={() => setMetodoPago("qr")}>📱 QR</button>
           </div>
-
+          <label className="posc-credit">
+            <input type="checkbox" checked={esCredito} onChange={(e) => setEsCredito(e.target.checked)} />
+            Venta a crédito
+          </label>
+          {esCredito ? (
+            <div className="credit-box">
+              {!mostrarNuevoCliente ? (
+                <select className="input" value={clienteId} onChange={(e) => setClienteId(e.target.value)}>
+                  <option value="">Seleccionar cliente...</option>
+                  {clientes.map((c) => (<option key={c.id} value={c.id}>{c.nombre}</option>))}
+                </select>
+              ) : (
+                <div style={{ display: "flex", gap: 6 }}>
+                  <input className="input" value={nuevoClienteNombre} onChange={(e) => setNuevoClienteNombre(e.target.value)} placeholder="Nombre del cliente" />
+                  <button type="button" className="btn btn-primary btn-sm" onClick={crearClienteInline}>Crear</button>
+                </div>
+              )}
+              <button type="button" className="btn btn-secondary btn-sm" onClick={() => setMostrarNuevoCliente((v) => !v)}>
+                {mostrarNuevoCliente ? "Cancelar" : "+ Nuevo cliente"}
+              </button>
+              <input className="input mono" type="number" min="0" step="0.01" placeholder="Abono inicial (Bs)" value={montoPagadoInicial} onChange={(e) => setMontoPagadoInicial(e.target.value)} />
+            </div>
+          ) : (
+            <input className="input" placeholder="Nombre del comprador (opcional)" value={nombreComprador} onChange={(e) => setNombreComprador(e.target.value)} />
+          )}
           <button
             className="btn-cobrar"
             disabled={carrito.length === 0 || cobrando || (esCredito && !clienteId)}
             onClick={cobrar}
           >
-            {cobrando ? "Procesando..." : `Cobrar Bs ${total.toFixed(2)}`}
+            {cobrando ? "Procesando..." : "Cobrar"}
           </button>
+        </div>
+      </div>
+
+      <div className="posc-bottom">
+        <div className="posc-tools">
+          <div className="search-box">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <circle cx="11" cy="11" r="8" /><line x1="21" y1="21" x2="16.65" y2="16.65" />
+            </svg>
+            <input
+              placeholder="Buscar por nombre, código, OEM o vehículo..."
+              value={busqueda}
+              onChange={(e) => setBusqueda(e.target.value)}
+            />
+          </div>
+          <div className="posc-chips">
+            <div className={`chip ${!categoriaActiva ? "active" : ""}`} onClick={() => setCategoriaActiva(null)}>Todos</div>
+            {categorias.map((c) => (
+              <div key={c.id} className={`chip ${categoriaActiva === c.id ? "active" : ""}`} onClick={() => setCategoriaActiva(c.id)}>
+                {c.nombre}
+              </div>
+            ))}
+          </div>
+        </div>
+        <div className="posc-grid">
+          {productosFiltrados.map((p) => (
+            <div key={p.id} className={`posc-tile ${p.stock <= 0 ? "sin-stock" : ""}`} onClick={() => agregarAlCarrito(p)}
+              title={`${p.nombre}${p.detalle ? " · " + p.detalle : ""}${p.estante ? " · " + p.estante : ""}`}>
+              <div className="n">{p.nombre}</div>
+              <div className="c mono">{p.oem || p.codigo} · <span className={p.stock <= p.stock_minimo ? "low" : ""}>{p.stock} u.</span>{p.estante ? ` · ${p.estante}` : ""}</div>
+              <div className="p mono">Bs {precioDe(p).toFixed(2)}</div>
+            </div>
+          ))}
+          {productosFiltrados.length === 0 && (
+            <p style={{ color: "var(--text-muted)", gridColumn: "1 / -1" }}>No se encontraron productos.</p>
+          )}
         </div>
       </div>
     </div>

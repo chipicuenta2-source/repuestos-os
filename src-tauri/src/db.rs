@@ -229,6 +229,10 @@ pub fn init_db(conn: &Connection) -> Result<()> {
         conn.execute("ALTER TABLE productos ADD COLUMN costo REAL NOT NULL DEFAULT 0", [])?;
     }
 
+    if !columna_existe(conn, "compras", "usuario_id") {
+        conn.execute("ALTER TABLE compras ADD COLUMN usuario_id INTEGER", [])?;
+    }
+
     seed_inicial(conn)?;
     cargar_catalogo_ryn(conn)?;
     Ok(())

@@ -30,6 +30,9 @@ fn requiere_admin(cmd: &str) -> bool {
             | "registrar_compra"
             | "registrar_pago_proveedor"
             | "listar_movimientos_proveedor"
+            | "listar_compras"
+            | "listar_items_compras"
+            | "listar_pagos_proveedores"
             | "listar_deudas_clientes"
             | "registrar_pago_venta"
             | "listar_pagos_venta"
@@ -131,6 +134,19 @@ pub fn despachar(conn: &mut Connection, ctx: &Ctx, cmd: &str, args: &Value) -> R
         }
         "listar_movimientos_proveedor" => {
             json_de(commands::proveedores::listar_movimientos_proveedor(conn, arg(args, "proveedorId")?)?)
+        }
+
+        "listar_compras" | "listar_items_compras" | "listar_pagos_proveedores" => {
+            let f = commands::proveedores::FiltroCompras {
+                proveedor_id: arg(args, "proveedorId")?,
+                desde: arg(args, "desde")?,
+                hasta: arg(args, "hasta")?,
+            };
+            match cmd {
+                "listar_compras" => json_de(commands::proveedores::listar_compras(conn, f)?),
+                "listar_items_compras" => json_de(commands::proveedores::listar_items_compras(conn, f)?),
+                _ => json_de(commands::proveedores::listar_pagos_proveedores(conn, f)?),
+            }
         }
 
         // --- Clientes y ventas ---

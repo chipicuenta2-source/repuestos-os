@@ -4,11 +4,13 @@ import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
 import VistaPreviaPDF from "../modals/VistaPreviaPDF.jsx";
 import { encabezadoPDF } from "../../marca.js";
+import ReporteCompras from "./ReporteCompras.jsx";
 
 export default function Reportes() {
   const [rentabilidad, setRentabilidad] = useState([]);
   const [resumen, setResumen] = useState(null);
   const [pdf, setPdf] = useState(null);
+  const [pestana, setPestana] = useState("general");
 
   useEffect(() => {
     api.listarRentabilidadProductos().then(setRentabilidad);
@@ -75,8 +77,13 @@ export default function Reportes() {
     <div className="view-scroll">
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
         <h1 className="font-title" style={{ fontSize: 19, textTransform: "uppercase" }}>Reportes</h1>
-        <button className="btn btn-primary" onClick={exportarPDF}>Ver PDF</button>
+        {pestana === "general" && <button className="btn btn-primary" onClick={exportarPDF}>Ver PDF</button>}
       </div>
+      <div className="chips-row">
+        <div className={`chip ${pestana === "general" ? "active" : ""}`} onClick={() => setPestana("general")}>General y ganancias</div>
+        <div className={`chip ${pestana === "compras" ? "active" : ""}`} onClick={() => setPestana("compras")}>Proveedores y compras</div>
+      </div>
+      {pestana === "compras" ? <ReporteCompras /> : (<>
       {pdf && <VistaPreviaPDF doc={pdf.doc} nombre={pdf.nombre} onClose={() => setPdf(null)} />}
 
       <div className="kpi-row">
@@ -148,6 +155,7 @@ export default function Reportes() {
           </tbody>
         </table>
       </div>
+    </>)}
     </div>
   );
 }

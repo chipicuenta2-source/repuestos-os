@@ -100,13 +100,14 @@ pub fn registrar_compra(conn: &mut Connection, ctx: &Ctx, compra: NuevaCompra) -
     let monto_total: f64 = compra.items.iter().map(|i| i.costo_unitario * i.cantidad as f64).sum();
 
     tx.execute(
-        "INSERT INTO compras (proveedor_id, fecha, es_credito, monto_total, monto_abonado) VALUES (?1,?2,?3,?4,?5)",
+        "INSERT INTO compras (proveedor_id, fecha, es_credito, monto_total, monto_abonado, usuario_id) VALUES (?1,?2,?3,?4,?5,?6)",
         params![
             compra.proveedor_id,
             fecha,
             compra.es_credito as i64,
             monto_total,
-            if compra.es_credito { 0.0 } else { monto_total }
+            if compra.es_credito { 0.0 } else { monto_total },
+            ctx.usuario.as_ref().map(|u| u.id)
         ],
     )
     .map_err(|e| e.to_string())?;
@@ -209,6 +210,147 @@ pub fn listar_movimientos_proveedor(conn: &Connection, proveedor_id: i64) -> Res
                 descripcion: row.get(4)?,
             })
         })
+        .map_err(|e| e.to_string())?
+        .filter_map(|r| r.ok())
+        .collect();
+    Ok(rows)
+}
+
+#[derive(Deserialize, Default)]
+pub struct FiltroCompras {
+    pub proveedor_id: Option<i64>,
+    pub desde: Option<String>,
+    pub hasta: Option<String>,
+}
+
+#[derive(Serialize)]
+pub struct CompraResumen {
+    pub id: i64,
+    pub proveedor_id: i64,
+    pub proveedor_nombre: String,
+    pub fecha: String,
+    pub es_credito: bool,
+    pub monto_total: f64,
+    pub usuario_nombre: Option<String>,
+    pub unidades: i64,
+    pub productos: i64,
+}
+
+pub fn listar_compras(conn: &Connection, f: FiltroCompras) -> Result<Vec<CompraResumen>, String> {
+    let mut stmt = conn
+        .prepare(
+            "SELECT c.id, c.proveedor_id, p.nombre, c.fecha, c.es_credito, c.monto_total, u.nombre,
+                    COALESCE((SELECT SUM(cantidad) FROM compra_items WHERE compra_id = c.id),0),
+                    COALESCE((SELECT COUNT(*) FROM compra_items WHERE compra_id = c.id),0)
+             FROM compras c
+             JOIN proveedores p ON p.id = c.proveedor_id
+             LEFT JOIN usuarios u ON u.id = c.usuario_id
+             WHERE (?1 IS NULL OR c.proveedor_id = ?1)
+               AND (?2 IS NULL OR substr(c.fecha,1,10) >= ?2)
+               AND (?3 IS NULL OR substr(c.fecha,1,10) <= ?3)
+             ORDER BY c.id DESC LIMIT 2000",
+        )
+        .map_err(|e| e.to_string())?;
+    let rows = stmt
+        .query_map(
+            params![f.proveedor_id, f.desde.filter(|d| !d.is_empty()), f.hasta.filter(|d| !d.is_empty())],
+            |r| {
+                Ok(CompraResumen {
+                    id: r.get(0)?,
+                    proveedor_id: r.get(1)?,
+                    proveedor_nombre: r.get(2)?,
+                    fecha: r.get(3)?,
+                    es_credito: r.get::<_, i64>(4)? != 0,
+                    monto_total: r.get(5)?,
+                    usuario_nombre: r.get(6)?,
+                    unidades: r.get(7)?,
+                    productos: r.get(8)?,
+                })
+            },
+        )
+        .map_err(|e| e.to_string())?
+        .filter_map(|r| r.ok())
+        .collect();
+    Ok(rows)
+}
+
+#[derive(Serialize)]
+pub struct ItemCompraDetalle {
+    pub compra_id: i64,
+    pub fecha: String,
+    pub proveedor_nombre: String,
+    pub producto_id: i64,
+    pub nombre: String,
+    pub codigo: Option<String>,
+    pub oem: Option<String>,
+    pub cantidad: i64,
+    pub costo_unitario: f64,
+}
+
+/// Material que ingresó al almacén: una fila por producto de cada compra.
+pub fn listar_items_compras(conn: &Connection, f: FiltroCompras) -> Result<Vec<ItemCompraDetalle>, String> {
+    let mut stmt = conn
+        .prepare(
+            "SELECT c.id, c.fecha, pr.nombre, i.producto_id, p.nombre, p.codigo, p.oem, i.cantidad, i.costo_unitario
+             FROM compra_items i
+             JOIN compras c ON c.id = i.compra_id
+             JOIN proveedores pr ON pr.id = c.proveedor_id
+             JOIN productos p ON p.id = i.producto_id
+             WHERE (?1 IS NULL OR c.proveedor_id = ?1)
+               AND (?2 IS NULL OR substr(c.fecha,1,10) >= ?2)
+               AND (?3 IS NULL OR substr(c.fecha,1,10) <= ?3)
+             ORDER BY c.id DESC, i.id ASC LIMIT 5000",
+        )
+        .map_err(|e| e.to_string())?;
+    let rows = stmt
+        .query_map(
+            params![f.proveedor_id, f.desde.filter(|d| !d.is_empty()), f.hasta.filter(|d| !d.is_empty())],
+            |r| {
+                Ok(ItemCompraDetalle {
+                    compra_id: r.get(0)?,
+                    fecha: r.get(1)?,
+                    proveedor_nombre: r.get(2)?,
+                    producto_id: r.get(3)?,
+                    nombre: r.get(4)?,
+                    codigo: r.get(5)?,
+                    oem: r.get(6)?,
+                    cantidad: r.get(7)?,
+                    costo_unitario: r.get(8)?,
+                })
+            },
+        )
+        .map_err(|e| e.to_string())?
+        .filter_map(|r| r.ok())
+        .collect();
+    Ok(rows)
+}
+
+#[derive(Serialize)]
+pub struct PagoProveedor {
+    pub id: i64,
+    pub proveedor_id: i64,
+    pub proveedor_nombre: String,
+    pub fecha: String,
+    pub monto: f64,
+}
+
+pub fn listar_pagos_proveedores(conn: &Connection, f: FiltroCompras) -> Result<Vec<PagoProveedor>, String> {
+    let mut stmt = conn
+        .prepare(
+            "SELECT m.id, m.proveedor_id, p.nombre, m.fecha, m.monto
+             FROM movimientos_proveedor m JOIN proveedores p ON p.id = m.proveedor_id
+             WHERE m.tipo = 'pago'
+               AND (?1 IS NULL OR m.proveedor_id = ?1)
+               AND (?2 IS NULL OR substr(m.fecha,1,10) >= ?2)
+               AND (?3 IS NULL OR substr(m.fecha,1,10) <= ?3)
+             ORDER BY m.id DESC LIMIT 2000",
+        )
+        .map_err(|e| e.to_string())?;
+    let rows = stmt
+        .query_map(
+            params![f.proveedor_id, f.desde.filter(|d| !d.is_empty()), f.hasta.filter(|d| !d.is_empty())],
+            |r| Ok(PagoProveedor { id: r.get(0)?, proveedor_id: r.get(1)?, proveedor_nombre: r.get(2)?, fecha: r.get(3)?, monto: r.get(4)? }),
+        )
         .map_err(|e| e.to_string())?
         .filter_map(|r| r.ok())
         .collect();

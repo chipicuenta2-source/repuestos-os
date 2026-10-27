@@ -54,6 +54,8 @@ let mockMovimientosProveedor = [
   { id: 1, proveedor_id: 1, tipo: "compra_credito", monto: 450, fecha: new Date().toISOString(), descripcion: "Compra #1" },
 ];
 
+let mockCompras = [];
+
 let mockClientes = [
   { id: 1, nombre: "Taller Hermanos Quispe", telefono: "71234567", carnet: "" },
 ];
@@ -376,6 +378,16 @@ export const api = {
         });
       }
       const provC = mockProveedores.find((p) => p.id === compra.proveedor_id);
+      mockCompras.push({
+        id: mockCompras.length + 1,
+        proveedor_id: compra.proveedor_id,
+        proveedor_nombre: provC ? provC.nombre : "—",
+        fecha: new Date().toISOString(),
+        es_credito: !!compra.es_credito,
+        monto_total: montoTotal,
+        usuario_nombre: mockUsuarioActual ? mockUsuarioActual.nombre : null,
+        items: compra.items.map((i) => ({ ...i })),
+      });
       logMock("compra", "compra", `Compra a ${provC ? provC.nombre : "proveedor"} · ${compra.items.length} producto(s) · Bs ${montoTotal.toFixed(2)} · ${compra.es_credito ? "a crédito" : "al contado"}`);
       return mockMovimientosProveedor.length;
     }
@@ -399,6 +411,51 @@ export const api = {
       return;
     }
     return invoke("registrar_pago_proveedor", { proveedorId, monto });
+  },
+
+  async listarCompras({ proveedorId = null, desde = null, hasta = null } = {}) {
+    if (!isTauri) {
+      await wait();
+      return mockCompras
+        .filter((c) => !proveedorId || c.proveedor_id === proveedorId)
+        .filter((c) => !desde || c.fecha.slice(0, 10) >= desde)
+        .filter((c) => !hasta || c.fecha.slice(0, 10) <= hasta)
+        .map((c) => ({ ...c, productos: c.items.length, unidades: c.items.reduce((a, i) => a + i.cantidad, 0) }))
+        .reverse();
+    }
+    return invoke("listar_compras", { proveedorId, desde, hasta });
+  },
+
+  async listarItemsCompras({ proveedorId = null, desde = null, hasta = null } = {}) {
+    if (!isTauri) {
+      await wait();
+      return mockCompras
+        .filter((c) => !proveedorId || c.proveedor_id === proveedorId)
+        .filter((c) => !desde || c.fecha.slice(0, 10) >= desde)
+        .filter((c) => !hasta || c.fecha.slice(0, 10) <= hasta)
+        .flatMap((c) =>
+          c.items.map((i) => {
+            const p = mockProductos.find((x) => x.id === i.producto_id) || {};
+            return { compra_id: c.id, fecha: c.fecha, proveedor_nombre: c.proveedor_nombre, producto_id: i.producto_id, nombre: p.nombre, codigo: p.codigo, oem: p.oem, cantidad: i.cantidad, costo_unitario: i.costo_unitario };
+          })
+        )
+        .reverse();
+    }
+    return invoke("listar_items_compras", { proveedorId, desde, hasta });
+  },
+
+  async listarPagosProveedores({ proveedorId = null, desde = null, hasta = null } = {}) {
+    if (!isTauri) {
+      await wait();
+      return mockMovimientosProveedor
+        .filter((m) => m.tipo === "pago")
+        .filter((m) => !proveedorId || m.proveedor_id === proveedorId)
+        .filter((m) => !desde || m.fecha.slice(0, 10) >= desde)
+        .filter((m) => !hasta || m.fecha.slice(0, 10) <= hasta)
+        .map((m) => ({ id: m.id, proveedor_id: m.proveedor_id, proveedor_nombre: (mockProveedores.find((p) => p.id === m.proveedor_id) || {}).nombre || "—", fecha: m.fecha, monto: m.monto }))
+        .reverse();
+    }
+    return invoke("listar_pagos_proveedores", { proveedorId, desde, hasta });
   },
 
   async listarMovimientosProveedor(proveedorId) {

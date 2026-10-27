@@ -151,3 +151,6 @@ Menú **Ingresos / Egresos** (admin y cajero): fecha, concepto y monto. Los ingr
 
 ## Cierre de caja: efectivo, QR y cobros de deudas
 El cierre muestra por separado lo cobrado en efectivo (ventas, cobros de deudas, otros ingresos/egresos) y lo cobrado por QR, que no entra al efectivo esperado. Los abonos de deudas ahora se registran en la caja abierta de quien los recibe (con método efectivo o QR) y exigen tener caja abierta; antes se sumaban a la caja de la venta original.
+
+## Reportes de proveedores y compras
+En **Reportes → Proveedores y compras** (solo admin): compras por fecha y proveedor con su detalle, material que ingresó al almacén (producto, cantidad y costo), pagos hechos a proveedores y resumen por proveedor. Todo con filtros de fecha y vista previa en PDF. El historial de actividad ("Historial") también registra cada compra y pago, con el usuario que lo hizo.
