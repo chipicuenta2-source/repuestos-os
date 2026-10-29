@@ -269,8 +269,11 @@ export default function POS({ usuario, cajaSesion }) {
         <div className="posc-grid">
           {productosFiltrados.map((p) => (
             <div key={p.id} className={`posc-tile ${p.stock <= 0 ? "sin-stock" : ""}`} onClick={() => agregarAlCarrito(p)}
-              title={`${p.nombre}${p.detalle ? " · " + p.detalle : ""}${p.estante ? " · " + p.estante : ""}`}>
+              title={`${p.nombre}${p.detalle ? " · " + p.detalle : ""}`}>
               <div className="n">{p.nombre}</div>
+              {(p.detalle || p.marca || p.procedencia) && (
+                <div className="d">{[p.detalle, p.marca, p.procedencia].filter(Boolean).join(" · ")}</div>
+              )}
               <div className="c mono">{p.oem || p.codigo} · <span className={p.stock <= p.stock_minimo ? "low" : ""}>{p.stock} u.</span>{p.estante ? ` · ${p.estante}` : ""}</div>
               <div className="p mono">Bs {precioDe(p).toFixed(2)}</div>
             </div>
